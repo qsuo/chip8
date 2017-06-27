@@ -10,8 +10,6 @@
 #include <time.h>
 #include "chip8.h"
 
-
-
 #define ind(x, y) ( ((y + WIDTH) % WIDTH) * HEIGHT + ((x + HEIGHT) % HEIGHT) )
 
 Chip8::Chip8() : BaseCPU(REGNUM, TIMERSNUM),
@@ -32,6 +30,7 @@ Chip8::Chip8() : BaseCPU(REGNUM, TIMERSNUM),
     m_PC = ENTRYPOINT;
     m_SP = 0;
 
+    drawFlag = true;
 
     if(m_memory == NULL || m_stack == NULL || m_register == NULL || m_gfx == NULL)
       okConstruct = false;
@@ -85,8 +84,6 @@ int FileSize(FILE *file)
 int Chip8::loadBinary(const char* path)
 {
 
-    /* Open file */
-
     FILE *rom = fopen(path, "rb");
 
     if (!rom)
@@ -102,12 +99,14 @@ int Chip8::loadBinary(const char* path)
 
     size_t result = fread(romBuffer, sizeof(uint8_t), romSize, rom);
 
-    /* Close File */
-
     fclose(rom);
 
     if (result != romSize)
         return BADREAD;
+
+    /* Valid memory */
+    if (romSize > MEMORYSIZE - ENTRYPOINT)
+        return BIGFILE;
 
     for (size_t i = 0; i < romSize; i++)
         m_memory[m_PC + i] = romBuffer[i];
@@ -116,6 +115,11 @@ int Chip8::loadBinary(const char* path)
 
     return OK;
 
+}
+
+bool Chip8::drawStatus() const
+{
+    return drawFlag;
 }
 
 /* @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ */
@@ -346,7 +350,7 @@ int Chip8::Shl(int opcode)
 {
   int x_reg = XMASK(opcode);
 
-  m_register[VF] = m_register[x_reg] >> 7;
+  m_register[VF] = m_register[x_reg] >> 7; // TO DO
   m_register[x_reg] <<= 1;
   return 0;
 }
@@ -367,7 +371,7 @@ int Chip8::Sne_Reg(int opcode)
 
 int Chip8::Ld_I(int opcode)
 {
-  uint16_t address = opcode & 0x0FFF;
+  uint16_t address =ADDRESSMASK(opcode);
 
   m_I = address;
   return 0;
@@ -377,7 +381,7 @@ int Chip8::Ld_I(int opcode)
 
 int Chip8::Jp_Reg(int opcode)
 {
-  uint16_t address = opcode & 0x0FFF;
+  uint16_t address = ADDRESSMASK(opcode);
 
   if (address < ENTRYPOINT || address >= MEMORYSIZE)
   {
@@ -397,18 +401,21 @@ int Chip8::Rnd(int opcode)
   int kk = (CONSTMASK(opcode));
 
   srand( time(NULL) );
-  m_register[x_reg] = (rand() % 255) & kk;
+  m_register[x_reg] = (rand() % 255) & kk; // TO DO
   return 0;
 }
+
+// DXYN - Drw sprite(N bytes) begining Vx, Vy
 
 int Chip8::Drw(int opcode)
 {
   int x_reg = XMASK(opcode);
   int y_reg = YMASK(opcode);
-  int n = (opcode & 0x000F);
+  int n = NIBBLE(opcode);
 
   int startX = m_register[x_reg];
   int startY = m_register[y_reg];
+  drawFlag = false;
 
   m_register[VF] = 0;
   for (int y = 0; y < n; y++)
@@ -418,8 +425,11 @@ int Chip8::Drw(int opcode)
     {
 
       int *pixel = m_gfx + ind(startX + x, startY + y);
+      int bit = (pixels >> (7 - x)) & 0x1;
+      if (*pixel ^ bit != 0)
+        drawFlag = true;
 
-      if (pixels & (0x80 >> x))
+      if (bit)
       {
         if (*pixel)
           m_register[VF] = 1;
@@ -427,7 +437,7 @@ int Chip8::Drw(int opcode)
       }
     }
   }
-
+ 
   return 0;
 }
 
@@ -467,14 +477,12 @@ int Chip8::Ld_Reg_Dt(int opcode)
 
 int Chip8::Ld_Key(int opcode)
 {
-  //m_PC -= NEXT;
   int x_reg = XMASK(opcode);
 
   int key = keyboard.isAnyKeyPressed();
   if (key != -1)
   {
     m_register[x_reg] = key;
-    //m_PC += NEXT;
     return 0;
   }
   return 1;
@@ -515,7 +523,7 @@ int Chip8::Ld_Spr(int opcode)
 {
   int x_reg = XMASK(opcode);
 
-  m_I = m_register[x_reg] * 0x5;
+  m_I = m_register[x_reg] * NUMBERLENGTH;
   return 0;
 }
 
@@ -582,6 +590,8 @@ uint16_t Chip8::fetch()
   return result;
 }
 
+// have to add operator switch
+
 uint16_t Chip8::decode(uint16_t cmd)
 {
   uint8_t first  = NIBBLE((cmd >> 12));
@@ -605,16 +615,19 @@ uint16_t Chip8::decode(uint16_t cmd)
 
 void Chip8::execute(uint16_t decodedCmd, uint16_t cmd)
 {
+  transaction_callBack cw = NULL;
   for (int i = 0; i < 34; i++)
     if (decodedCmd == FSM[i].code)
     {
       /* call system function */
-      transaction_callBack cw = FSM[i].worker;
+      cw = FSM[i].worker;
       int goNext = (this->*cw)(cmd);
       if(goNext == 0)
         m_PC += NEXT;
       break;
     }
+  if (cw == NULL)
+    error = UNKNOWN;
 }
 
 

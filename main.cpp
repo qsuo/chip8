@@ -1,76 +1,23 @@
-#include <cstdio>
+/*
+ *  Mega emulator chip8
+ *  Copyright (C) 2017 ...
+ *
+ *  This program is free software
+ *  may 2017
+ */
+
 #include <SFML/Graphics.hpp>
-#include "chip8/chip8.h"
+#include "include/chip8/chip8.h"
 
+#define SCALE 10
 
-int main(int argc, char **argv)
+const float FREQUENCY = 1000.0 / 60.0;
+
+int error = OK;
+
+int eventInput(sf::RenderWindow& window, sf::Event& event, Chip8& emulator)
 {
-
-  Chip8 emulator;
-
-  if(emulator.okConstruct == false)
-  {
-    fprintf(stderr, "Bad allocation");
-    exit(1);
-  }
-
-
-  if (argc != 2)
-  {
-    fprintf(stderr, "Usage: ROM file is missing\n");
-    exit(1);
-  }
-
-  int whatErr = emulator.loadBinary(argv[1]);
-  switch(whatErr)
-  {
-    case BADOPEN:
-      {
-        fprintf(stderr, "Bad opening");
-        exit(1);
-      }
-    case BADALLOC:
-      {
-        fprintf(stderr, "Bad allocation");
-        exit(1);
-      }
-    case BADREAD:
-      {
-        fprintf(stderr, "Bad reading the rom");
-        exit(1);
-      }
-  }
-
-  sf::RenderWindow window(sf::VideoMode(640, 320), "Chip8");
-
-  // clear the window with black color
-  window.clear(sf::Color::White);
-
-  //window.setVerticalSyncEnabled(true);
-
-  sf::Clock clocks;
-
-  sf::Time time1;
-  sf::Time time2;
-
-
-  time1 = clocks.getElapsedTime();
-
-  int opcode_per_second = 0;
-  int limit = 10;
-
-  // run the program as long as the window is open
-  while (window.isOpen())
-  {
-    // check all the window's events that were triggered since the last iteration of the loop
-    sf::Event event;
-
-
-    while (window.pollEvent(event))
-    {
-      // "close requested" event: we close the window
-
-      switch(event.type)
+   switch(event.type)
       {
         case(sf::Event::Closed):
           window.close();
@@ -121,50 +68,137 @@ int main(int argc, char **argv)
             }
             break;
         }
-    }
+  return 0;
+}
 
-    if (opcode_per_second < limit)
+int draw(sf::RenderWindow& window, Chip8& emulator)
+{
+  sf::RectangleShape rectangle;
+  rectangle.setSize(sf::Vector2f(10, 10));
+  
+  if (emulator.drawStatus())
+  {
+    sf::Color lightGrey(40, 40, 40);
+    sf::Color darkGrey(169, 169, 169);
+    for (int i = 0; i < SCREENSIZE; i++)
+    {
+      rectangle.setPosition((i % 64) * 10, (i / 64) * 10);
+      if (emulator.m_gfx[i] == 1)
+        rectangle.setFillColor(lightGrey);
+          else
+            rectangle.setFillColor(darkGrey);
+          window.draw(rectangle);
+    }
+      window.display();
+  }
+
+}
+
+
+int run(Chip8& emulator)
+{
+
+  sf::RenderWindow window(sf::VideoMode(HEIGHT * SCALE, WIDTH * SCALE), "Chip8");
+
+  // clear the window with black color
+  window.clear(sf::Color::Yellow);
+
+  sf::Clock clocks;
+
+  sf::Time time1;
+  sf::Time time2;
+
+  time1 = clocks.getElapsedTime();
+
+  int opcodesPerSecond = 0;
+  int limit = 10;
+
+  while (window.isOpen())
+  {
+    sf::Event event;
+
+    while (window.pollEvent(event))
+      eventInput(window, event, emulator);
+
+    if (opcodesPerSecond < limit)
     {
       emulator.doCycle();
       if(error != OK)
       {
-        fprintf(stderr, "Some problem with executing rom. Change this.");
+        fprintf(stderr, "Some problem with executing rom. Change this.\n");
         exit(1);
       }
-      opcode_per_second++;
+      opcodesPerSecond++;
     }
 
     time2 = clocks.getElapsedTime();
 
-
-    if (time2.asMilliseconds() - time1.asMilliseconds() >=  1000/60)
+    if (time2.asMilliseconds() - time1.asMilliseconds() >= FREQUENCY)
     {
-      
-      emulator.decreaseTimers();
-      
+      emulator.decreaseTimers();     
+
       time1 = clocks.getElapsedTime();
-
-
-      sf::RectangleShape rectangle;
-      rectangle.setSize(sf::Vector2f(10, 10));
-
-      for (int i = 0; i < SCREENSIZE; i++)
-      {
-        rectangle.setPosition((i % 64) * 10, (i / 64) * 10);
-        if (emulator.m_gfx[i] == 1)
-          rectangle.setFillColor(sf::Color::Black);
-        else
-          rectangle.setFillColor(sf::Color::White);
-
-        window.draw(rectangle);
-      }
-
-      opcode_per_second = 0;
-      window.display();
-
+      
+      draw(window, emulator);  
+      opcodesPerSecond = 0;
     }
+  }
+  return 0;
+}
+  
+void whatErrorAndDie(int whatErr)
+{
+  switch(whatErr)
+  {
+    case BADOPEN:
+      {
+        fprintf(stderr, "Bad opening\n");
+        exit(1);
+      }
+    case BADALLOC:
+      {
+        fprintf(stderr, "Bad allocation\n");
+        exit(1);
+      }
+    case BADREAD:
+      {
+        fprintf(stderr, "Bad reading the rom\n");
+        exit(1);
+      }
+    case BIGFILE:
+      {
+        fprintf(stderr, "Too big file\n");
+        exit(1);
+      }
+  }
+
 }
 
+int main(int argc, char **argv)
+{
+
+  Chip8 emulator;
+
+  if(emulator.okConstruct == false)
+  {
+    fprintf(stderr, "Bad allocation\n");
+    exit(1);
+  }
+
+
+  if (argc != 2)
+  {
+    fprintf(stderr, "Usage: ROM file is missing\n");
+    exit(1);
+  }
+
+  int whatErr = emulator.loadBinary(argv[1]);
+
+  if(whatErr != OK)
+    whatErrorAndDie(whatErr);
+  
+  run(emulator);
+ 
   return 0;
 
 }

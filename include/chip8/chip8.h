@@ -1,48 +1,40 @@
+/*
+ *  Mega emulator chip8
+ *  Copyright (C) 2017 Atayan Garik <olympg@yandex.ru>
+ *
+ *  This program is free software
+ *  may 2017
+ */
+
 #ifndef __Chip8__H__
 #define __Chip8__H__
 
+#include "../systemData.h"
 #include "../cpu/cpuBase.h"
+#include "../keyboard/keyboard.h"
 #include <cstring>
 #include <fstream>
 #include <cstdio>
-#include <stdint.h>
-#include "../keyboard/keyboard.h"
 
-/* error variable */
-
-static int error = 0;
-
-enum ERROR
-{
-    OK,
-    BADOPEN,
-    BADALLOC,
-    BADROM,
-    BADREAD,
-    STACKERROR,
-    ADDRESSERR,
-    BADARGUMENT
-};
-
-#define BYTESIZE 0x8
+#define BYTESIZE 8
 #define BYTE 0x100
 #define MEMORYSIZE 0x1000
 #define VIDEOMEMORY 0xF00
-#define NEXT 0x2
+#define NEXT 2
 #define ENTRYPOINT 0x200
-#define STACKSIZE 0x10
-#define SCREENSIZE 0x800
-#define HEIGHT 0x40
-#define WIDTH 0x20
-#define REGNUM 0x10
-#define TIMERSNUM 0x2
-#define FONTSIZE 0x50
+#define STACKSIZE 16
+#define SCREENSIZE 2048
+#define HEIGHT 64
+#define WIDTH 32
+#define REGNUM 16
+#define TIMERSNUM 2
+#define FONTSIZE 80
 #define ADDRESSMASK(arg) (arg & 0x0FFF)
 #define XMASK(arg) ((arg & 0x0F00) >> 8)
 #define YMASK(arg) ((arg & 0x00F0) >> 4)
 #define NIBBLE(arg) (arg & 0x000F)
 #define CONSTMASK(arg) (arg & 0x00FF)
-
+#define NUMBERLENGTH 0x5
 
 #define V0 0x0
 #define V1 0x1
@@ -60,66 +52,6 @@ enum ERROR
 #define VD 0xD
 #define VE 0xE
 #define VF 0xF
-
-static uint8_t Chip8_fontset[80] =
-{
-  0xF0, 0x90, 0x90, 0x90, 0xF0, //0
-  0x20, 0x60, 0x20, 0x20, 0x70, //1
-  0xF0, 0x10, 0xF0, 0x80, 0xF0, //2
-  0xF0, 0x10, 0xF0, 0x10, 0xF0, //3
-  0x90, 0x90, 0xF0, 0x10, 0x10, //4
-  0xF0, 0x80, 0xF0, 0x10, 0xF0, //5
-  0xF0, 0x80, 0xF0, 0x90, 0xF0, //6
-  0xF0, 0x10, 0x20, 0x40, 0x40, //7
-  0xF0, 0x90, 0xF0, 0x90, 0xF0, //8
-  0xF0, 0x90, 0xF0, 0x10, 0xF0, //9
-  0xF0, 0x90, 0xF0, 0x90, 0x90, //A
-  0xE0, 0x90, 0xE0, 0x90, 0xE0, //B
-  0xF0, 0x80, 0x80, 0x80, 0xF0, //C
-  0xE0, 0x90, 0x90, 0x90, 0xE0, //D
-  0xF0, 0x80, 0xF0, 0x80, 0xF0, //E
-  0xF0, 0x80, 0xF0, 0x80, 0x80  //F
-};
-
-
-enum command
-{
-    CLS         = 0x00E0,
-    RET         = 0x00EE,
-    JP          = 0x1,
-    CALL        = 0x2,
-    SE_CONST    = 0x3,
-    SNE_CONST   = 0x4,
-    SE_REG      = 0x5,
-    LD_CONST    = 0x6,
-    ADD_CONST   = 0x7,
-    LD_REG      = 0x80,
-    OR          = 0x81,
-    AND         = 0x82,
-    XOR         = 0x83,
-    ADD_REG     = 0x84,
-    SUB         = 0x85,
-    SHR         = 0x86,
-    SUBN        = 0x87,
-    SHL         = 0x8E,
-    SNE_REG     = 0x9,
-    LD_I        = 0xA,
-    JP_REG      = 0xB,
-    RND         = 0xC,
-    DRW         = 0xD,
-    SKP         = 0xE9E,
-    SKNP        = 0xEA1,
-    LD_REG_DT   = 0xF07,
-    LD_KEY      = 0xF0A,
-    LD_DT       = 0xF15,
-    LD_ST       = 0xF18,
-    ADD_I       = 0xF1E,
-    LD_SPR      = 0xF29,
-    LD_BCD      = 0xF33,
-    LD_REG_MEM  = 0xF55,
-    LD_REG_LOAD = 0xF65
-};
-
 
 class Chip8 : public BaseCPU
 {
@@ -224,14 +156,15 @@ class Chip8 : public BaseCPU
         virtual uint16_t decode(uint16_t cmd);
         virtual void execute(uint16_t decodedCmd, uint16_t cmd);
 
-        void Run();
-
+        bool drawStatus() const;
         void decreaseTimers();
 
         bool okConstruct;
+
         Chip8Keyboard keyboard;
         int *m_gfx;
 
+        int m_SoundTimer;
     private :
 
         uint8_t* m_register;
@@ -244,11 +177,10 @@ class Chip8 : public BaseCPU
         uint16_t m_I;
 
        
-
         bool drawFlag;
 
         int m_DelayTimer;
-        int m_SoundTimer;
+        //int m_SoundTimer;
 
 };
 
