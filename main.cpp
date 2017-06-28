@@ -7,7 +7,7 @@
  */
 
 #include <SFML/Graphics.hpp>
-#include "include/chip8/chip8.h"
+#include "src/chip8/chip8.h"
 
 #define SCALE 10
 
