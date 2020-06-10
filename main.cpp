@@ -1,10 +1,3 @@
-/*
- *  Mega emulator chip8
- *  Copyright (C) 2017 ...
- *
- *  This program is free software
- *  may 2017
- */
 
 #include <SFML/Graphics.hpp>
 #include "src/chip8/chip8.h"

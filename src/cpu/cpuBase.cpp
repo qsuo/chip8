@@ -1,10 +1,3 @@
-/*
- *  Mega emulator chip8
- *  Copyright (C) 2017 Atayan Garik <olympg@yandex.ru>
- *
- *  This program is free software
- *  may 2017
- */
 
 
 #include "cpuBase.h"

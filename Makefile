@@ -1,5 +1,6 @@
 all: emu
 
+.PHONY: clean
 
 keyboard.o: src/keyboard/keyboard.cpp
 	g++ -std=c++11 -c -o keyboard.o src/keyboard/keyboard.cpp
@@ -16,4 +17,6 @@ main.o: main.cpp
 emu: keyboard.o cpu.o chip8.o main.o
 	g++ -std=c++11 -o emu keyboard.o cpu.o chip8.o main.o -lsfml-graphics -lsfml-window -lsfml-system -lsfml-audio
 
+clean:	
+	rm -rf emu *.o
 
